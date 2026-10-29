@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BHUMI-AI | Intelligent Land Record Digitization & Validation System (SIH26018)</title>
+  <meta name="description"
+    content="AI-powered platform for automated digitization, multilingual OCR, cadastral GIS mapping, and validation of Indian land records for the Ministry of Rural Development.">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/studio.css">
+  <link rel="stylesheet" href="css/gis.css">
+  <link rel="stylesheet" href="css/theme.css">
+  <script>
+    /* Immediate theme & auth initialization to eliminate flash and enforce login */
+    (function() {
+      try {
+        var savedTheme = localStorage.getItem('bhumi_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        var token = sessionStorage.getItem('bhumi_jwt_token') || localStorage.getItem('bhumi_jwt_token');
+        var user = sessionStorage.getItem('bhumi_auth_user') || localStorage.getItem('bhumi_auth_user');
+        if (!token || !user) {
+          window.location.replace('login.html');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+
+<body>
+  <div id="app-root">
+
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+      <div class="navbar-brand" onclick="window.app.handleBrandClick()">
+        <div class="brand-emblem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#38bdf8" />
+          </svg>
+        </div>
+        <div class="brand-title-group">
+          <div class="brand-title">
+            <span data-i18n="appTitle">BHUMI-AI</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Role Gated) -->
+      <nav class="nav-tabs-container">
+        <!-- Tahsildar & Admin Tabs -->
+        <button class="nav-tab-btn active" data-view="dashboard" data-roles="tahsildar,admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+          </svg>
+          <span data-i18n="navDashboard">Dashboard</span>
+        </button>
+
+        <button class="nav-tab-btn" data-view="studio" data-roles="tahsildar,admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          <span data-i18n="navStudio">HITL Review Studio</span>
+        </button>
+
+        <button class="nav-tab-btn" data-view="cadastral" data-roles="tahsildar,admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+            <line x1="8" y1="2" x2="8" y2="18" />
+            <line x1="16" y1="6" x2="16" y2="22" />
+          </svg>
+          <span data-i18n="navCadastral">Bhu-Naksha GIS</span>
+        </button>
+
+        <button class="nav-tab-btn" data-view="ownership-queue" data-roles="tahsildar,admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"></path>
+            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+          </svg>
+          <span>Ownership Queue</span>
+        </button>
+
+        <button class="nav-tab-btn" data-view="admin-users" data-roles="admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 010 7.75"></path>
+          </svg>
+          <span>User Management</span>
+        </button>
+
+        <button class="nav-tab-btn" data-view="batch" data-roles="tahsildar,admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+          </svg>
+          <span data-i18n="navBatch">Batch Queue</span>
+        </button>
+
+        <!-- Citizen Tabs -->
+        <button class="nav-tab-btn" data-view="citizen-holdings" data-roles="citizen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span>My Land Holdings</span>
+        </button>
+
+        <button class="nav-tab-btn" data-view="citizen-claims" data-roles="citizen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          <span>Link Record / Claims</span>
+        </button>
+
+        <!-- Police Tabs -->
+        <button class="nav-tab-btn" data-view="police-registry" data-roles="police">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span>Cadastral Registry</span>
+        </button>
+      </nav>
+
+      <!-- Right Actions -->
+      <div class="navbar-actions">
+        <!-- Theme Switcher (Dark / Light) -->
+        <button id="theme-toggle-btn" class="theme-toggle-btn" type="button" onclick="window.app.toggleTheme()" title="Toggle Dark / Light Theme" aria-label="Toggle theme">
+          <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+
+        <select id="lang-select" class="lang-selector">
+          <option value="en">English (EN)</option>
+          <option value="hi">हिंदी (Hindi)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+        </select>
+
+        <!-- Stored Patta Documents (Max 10) Quick Switcher -->
+        <div id="nav-patta-switcher-container" class="nav-patta-switcher-container">
+          <button id="nav-patta-dropdown-btn" class="nav-patta-dropdown-btn" type="button" onclick="window.app.toggleNavPattaMenu()">
+            <span>📁 Stored Pattas (<span id="nav-patta-count">0</span>/10)</span>
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="nav-patta-menu" class="nav-patta-menu">
+            <div style="padding:0.4rem 0.85rem; font-size:0.7rem; font-weight:700; color:var(--text-secondary); border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between;">
+              <span>STORED PATTA ARCHIVE (MAX 10)</span>
+              <span style="color:var(--accent-cyan);">FIFO ROTATION</span>
+            </div>
+            <div id="nav-patta-menu-list"></div>
+          </div>
+        </div>
+
+        <button class="btn-upload-nav" onclick="window.app.openUploadModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          <span data-i18n="btnUpload">Ingest Scan</span>
+        </button>
+
+        <!-- Officer Auth Profile & Portal Login -->
+        <div id="nav-auth-container" class="nav-auth-container">
+          <div id="nav-user-badge" class="nav-user-badge" style="display:none;" onclick="window.app.toggleAuthMenu()">
+            <div class="user-avatar-circle" id="nav-user-avatar">👤</div>
+            <div class="user-info-text">
+              <span class="user-name" id="nav-user-name">Officer</span>
+              <span class="user-role" id="nav-user-role">Tehsildar</span>
+            </div>
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            <div id="nav-auth-menu" class="nav-auth-menu">
+              <div class="auth-menu-header">
+                <div id="auth-menu-fullname" style="font-weight:700; color:var(--text-primary);">Officer</div>
+                <div id="auth-menu-email" style="font-size:0.7rem; color:var(--text-muted);">officer@tn.gov.in</div>
+                <div id="auth-menu-jurisdiction" style="font-size:0.7rem; color:var(--accent-cyan); margin-top:2px;">Palani Taluk, Dindigul</div>
+              </div>
+              <div class="auth-menu-item" onclick="window.location.href='login.html'">
+                <span>🔄 Switch Officer Account</span>
+              </div>
+              <div class="auth-menu-item logout" onclick="window.app.logout()">
+                <span>🚪 Sign Out</span>
+              </div>
+            </div>
+          </div>
+          <a id="nav-login-btn" href="login.html" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:0.35rem; text-decoration:none;">
+            <span>🔑 Officer Login</span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Views -->
+    <main class="main-content">
+
+      <!-- =========================================================================
+           VIEW 1: EXECUTIVE ANALYTICS DASHBOARD
+           ========================================================================= -->
+      <section id="view-dashboard" class="view-section active">
+        <div class="dashboard-header">
+          <div>
+            <h1>Review dashboard</h1>
+            <p class="card-subtitle">Current workload and recent reviewer activity.</p>
+          </div>
+          <button class="btn btn-primary" onclick="window.app.openUploadModal()">Ingest Scan</button>
+        </div>
+
+        <div class="dashboard-metrics" aria-live="polite">
+          <article class="dashboard-metric-card" data-metric="pending">
+            <span class="metric-label">Pending Review</span>
+            <strong class="metric-value" id="metric-pending">—</strong>
+            <span class="metric-detail">Records awaiting a reviewer</span>
+          </article>
+          <article class="dashboard-metric-card" data-metric="processed">
+            <span class="metric-label">Processed Today</span>
+            <strong class="metric-value" id="metric-processed">—</strong>
+            <span class="metric-detail">Approved or rejected since midnight</span>
+          </article>
+          <article class="dashboard-metric-card" data-metric="review-time">
+            <span class="metric-label">Avg. Review Time</span>
+            <strong class="metric-value" id="metric-review-time">—</strong>
+            <span class="metric-detail">Created to status change, last 7 days</span>
+          </article>
+          <article class="dashboard-metric-card" data-metric="flagged">
+            <span class="metric-label">Flagged for Inspection</span>
+            <strong class="metric-value" id="metric-flagged">—</strong>
+            <span class="metric-detail">Records needing field inspection</span>
+          </article>
+          <article class="dashboard-metric-card dashboard-queue-card">
+            <span class="metric-label">HITL Review Studio</span>
+            <strong class="metric-value">Pending queue</strong>
+            <span class="metric-detail">Open the next records for review</span>
+            <button class="btn btn-secondary btn-sm" onclick="window.app.openPendingQueue()">Open pending queue</button>
+          </article>
+        </div>
+
+        <div id="dashboard-empty-state" class="dashboard-empty-state" hidden>
+          <h2>No records yet</h2>
+          <p>No records yet — ingest your first scan.</p>
+          <button class="btn btn-primary" onclick="window.app.openUploadModal()">Ingest Scan</button>
+        </div>
+
+        <!-- Stored Patta Documents (Max 10) Dashboard Archive Grid -->
+        <section class="card" id="dashboard-patta-archive-section" style="margin-bottom: 1.25rem;">
+          <div class="dashboard-section-header">
+            <div>
+              <h2>🗂️ Stored Patta Documents Archive (<span id="dashboard-patta-count">0</span>/10)</h2>
+              <p class="card-subtitle">Fast access to 10 stored Patta documents of different owners. FIFO Active: when an 11th is uploaded, the earliest uploaded document is automatically deleted to free up space.</p>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <button class="btn btn-secondary btn-sm" onclick="window.app.ingestSamplePatta()">✨ Add Sample Owner</button>
+              <button class="btn btn-primary btn-sm" onclick="window.app.openUploadModal()">📤 Ingest Patta Scan</button>
+            </div>
+          </div>
+          <div id="dashboard-patta-archive-container">
+            <!-- Rendered by JS -->
+          </div>
+        </section>
+
+        <!-- State Land Title Distribution & Tamil Nadu Parameters -->
+        <section class="card" style="margin-bottom: 1.25rem;">
+          <div class="dashboard-section-header">
+            <div>
+              <h2>🏛️ State Land Title Distribution Benchmarks & Tamil Nadu OCR Parameters</h2>
+              <p class="card-subtitle">Title distribution parameters across Indian States (Individual vs Community Titles) & Tamil Nadu Patta/Chitta OCR specs.</p>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <select id="state-benchmark-select" class="form-input" style="padding:0.25rem 0.5rem; font-size:0.8rem; background:var(--bg-tertiary); color:var(--text-primary); border:1px solid var(--border-medium); border-radius:var(--radius-sm);" onchange="window.app.updateStateBenchmark(this.value)">
+                <option value="Tamil Nadu" selected>Tamil Nadu (தமிழ்நாடு)</option>
+                <option value="Andhra Pradesh">Andhra Pradesh</option>
+                <option value="Karnataka">Karnataka</option>
+                <option value="Kerala">Kerala</option>
+                <option value="Maharashtra">Maharashtra</option>
+                <option value="Gujarat">Gujarat</option>
+                <option value="Odisha">Odisha</option>
+                <option value="Total">All States Combined (Total)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="state-benchmark-content">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </section>
+
+        <section class="card dashboard-audit-card">
+          <div class="dashboard-section-header">
+            <div>
+              <h2>Audit trail</h2>
+              <p class="card-subtitle">Review actions recorded by the backend.</p>
+            </div>
+            <button id="audit-sort-button" class="btn btn-ghost btn-sm" type="button">Newest first</button>
+          </div>
+          <div id="audit-loading" class="dashboard-table-skeleton" hidden aria-label="Loading audit trail">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div class="data-table-wrapper" id="audit-table-wrapper">
+            <table class="data-table">
+              <thead><tr><th>Record</th><th>Action</th><th>Reviewer</th><th>Timestamp</th></tr></thead>
+              <tbody id="audit-logs-table-body"></tbody>
+            </table>
+          </div>
+          <div class="dashboard-table-footer">
+            <span id="audit-pagination-label"></span>
+            <div>
+              <button id="audit-prev-button" class="btn btn-ghost btn-sm" type="button">Previous</button>
+              <button id="audit-next-button" class="btn btn-ghost btn-sm" type="button">Next</button>
+            </div>
+          </div>
+        </section>
+      </section>
+      <!-- =========================================================================
+           VIEW 2: HUMAN-IN-THE-LOOP (HITL) VERIFICATION STUDIO
+           ========================================================================= -->
+      <section id="view-studio" class="view-section">
+
+        <!-- Upload-first document intake -->
+        <div class="studio-upload-panel">
+          <div>
+            <div class="card-title">Upload a land record to begin review</div>
+            <div class="card-subtitle">OCR reads the uploaded document, scores confidence, and fills the review fields only when it detects a valid land-record document.</div>
+          </div>
+          <button class="btn btn-primary" onclick="window.app.openUploadModal()">📤 Upload Document</button>
+          <div id="studio-upload-status" class="studio-upload-status" role="status">No document uploaded yet.</div>
+        </div>
+
+        <!-- Stored Patta Documents Quick-Access Carousel / Strip -->
+        <div id="studio-patta-selector" class="patta-strip-container">
+          <div class="patta-strip-header">
+            <div class="patta-strip-title">
+              <span>📁 Stored Patta Documents (<span id="studio-patta-count">0</span>/10)</span>
+              <div class="patta-capacity-meter">
+                <div class="patta-capacity-bar-outer">
+                  <div id="studio-patta-bar-fill" class="patta-capacity-bar-fill" style="width: 0%; background: var(--accent-cyan);"></div>
+                </div>
+                <span id="studio-patta-meter-label">0/10 slots</span>
+              </div>
+            </div>
+            <div class="patta-strip-actions">
+              <button class="btn btn-secondary btn-sm" onclick="window.app.ingestSamplePatta()">✨ Add Sample Owner</button>
+              <button class="btn btn-primary btn-sm" onclick="window.app.openUploadModal()">📤 Ingest Scan</button>
+            </div>
+          </div>
+          <div id="studio-patta-track" class="patta-strip-track">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Split-Screen Studio Workspace -->
+        <div class="studio-container">
+
+          <!-- LEFT: Document Canvas Viewer & Vision Laboratory -->
+          <div class="studio-doc-pane">
+
+            <!-- Canvas Toolbar -->
+            <div class="studio-toolbar">
+              <div class="toolbar-group">
+                <button class="tool-btn" onclick="window.app.reviewStudio.zoomIn()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    <line x1="11" y1="8" x2="11" y2="14" />
+                    <line x1="8" y1="11" x2="14" y2="11" />
+                  </svg> Zoom In
+                </button>
+                <button class="tool-btn" onclick="window.app.reviewStudio.zoomOut()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    <line x1="8" y1="11" x2="14" y2="11" />
+                  </svg> Zoom Out
+                </button>
+                <button class="tool-btn" onclick="window.app.reviewStudio.resetCanvasViewport()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg> Fit
+                </button>
+              </div>
+
+              <div class="toolbar-group">
+                <button id="btn-draw-box" class="tool-btn"
+                  onclick="const active = window.app.reviewStudio.toggleDrawingMode(); this.classList.toggle('active', active);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <line x1="9" y1="3" x2="9" y2="21" />
+                  </svg>
+                  <span>Draw Region OCR</span>
+                </button>
+
+                <button class="tool-btn" onclick="document.getElementById('cv-drawer').classList.toggle('open')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  </svg>
+                  <span>CV Filters Lab</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Canvas Viewport -->
+            <div id="canvas-viewport-el" class="canvas-viewport">
+              <div class="canvas-container">
+                <canvas id="document-canvas"></canvas>
+                <div id="bbox-layer-container" class="bbox-layer"></div>
+              </div>
+            </div>
+
+            <!-- CV Filters Drawer -->
+            <div id="cv-drawer" class="cv-controls-drawer">
+              <div class="cv-controls-header">
+                <strong>🔬 Computer Vision Preprocessing Laboratory</strong>
+                <button class="btn btn-ghost btn-sm"
+                  onclick="document.getElementById('cv-drawer').classList.remove('open')">✕ Close</button>
+              </div>
+              <div class="cv-sliders-grid">
+                <div class="cv-slider-item">
+                  <div class="cv-slider-label"><span>Adaptive Otsu Binarization</span><span id="lbl-thresh">128</span>
+                  </div>
+                  <input type="range" class="cv-slider-input" min="50" max="220" value="128"
+                    oninput="document.getElementById('lbl-thresh').textContent = this.value; window.app.imageProcessor.applyFilters({ binarization: true, threshold: Number(this.value) });">
+                </div>
+
+                <div class="cv-slider-item">
+                  <div class="cv-slider-label"><span>Deskew Angle Correction</span><span id="lbl-skew">0°</span></div>
+                  <input type="range" class="cv-slider-input" min="-15" max="15" value="0" step="0.5"
+                    oninput="document.getElementById('lbl-skew').textContent = this.value + '°'; window.app.imageProcessor.applyFilters({ deskewAngle: Number(this.value) });">
+                </div>
+
+                <div class="cv-slider-item">
+                  <div class="cv-slider-label"><span>Contrast Stretch</span><span id="lbl-contrast">100%</span></div>
+                  <input type="range" class="cv-slider-input" min="50" max="250" value="100"
+                    oninput="document.getElementById('lbl-contrast').textContent = this.value + '%'; window.app.imageProcessor.applyFilters({ contrast: Number(this.value) });">
+                </div>
+
+                <div class="cv-slider-item"
+                  style="display:flex; flex-direction:row; align-items:center; gap:0.5rem; justify-content:space-between;">
+                  <button class="btn btn-secondary btn-sm"
+                    onclick="window.app.imageProcessor.applyFilters({ grayscale: false, binarization: false, contrast: 100, deskewAngle: 0 });">
+                    ↺ Reset Filters
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT: Structured Form & Review Panel -->
+          <div class="studio-form-pane">
+            <div class="studio-form-header">
+              <div>
+                <strong style="font-size:0.95rem;">Extracted Title Information</strong>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">Click any field to auto-focus corresponding
+                  scan region</div>
+              </div>
+              <div style="display:flex; gap:0.4rem;">
+                <button class="btn btn-secondary btn-sm" onclick="window.app.exportNicJson()">
+                  📄 JSON
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="window.app.exportCertificate()">
+                  🖨️ Certificate
+                </button>
+              </div>
+            </div>
+
+            <!-- Form Body -->
+            <div id="studio-form-body" class="form-body-scroll">
+              <!-- Populated via ReviewStudio JS -->
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="studio-form-footer">
+              <button class="btn btn-danger btn-sm" onclick="window.app.reviewStudio.flagForReInspection()">
+                🚩 Flag for Field Inspection
+              </button>
+
+              <div style="display:flex; gap:0.5rem;">
+                <button class="btn btn-secondary btn-sm" onclick="window.app.openExtractedInGis()">
+                  🗺️ View in GIS
+                </button>
+                <button class="btn btn-success" onclick="window.app.reviewStudio.approveRecord()">
+                  ✓ Approve & Seal Title
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- =========================================================================
+           VIEW 3: BHU-NAKSHA CADASTRAL GIS VECTOR MAP
+           ========================================================================= -->
+      <section id="view-cadastral" class="view-section">
+
+        <div class="gis-layout">
+
+          <!-- Left GIS Sidebar: Layers -->
+          <div class="gis-sidebar">
+            <div>
+              <div class="card-title" style="margin-bottom:0.25rem;">🗺️ Cadastral Layers</div>
+              <div class="card-subtitle">Bhu-Naksha Vector Spatial Layers</div>
+            </div>
+
+            <!-- Basemap / Google Maps Provider Selector -->
+            <div class="gis-basemap-section">
+              <label class="form-label" style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:700; display:block; margin-bottom:0.4rem;">Basemap Provider & Cache</label>
+              <div class="basemap-mode-tabs" style="display:flex; gap:0.25rem; margin-bottom:0.6rem;">
+                <button id="btn-mode-gmaps" class="btn btn-sm btn-primary active" style="flex:1; font-size:0.72rem; padding:0.35rem 0.25rem;" onclick="window.app.setGisMode('gmaps')">
+                  🛰️ Google Maps
+                </button>
+                <button id="btn-mode-cached" class="btn btn-sm btn-secondary" style="flex:1; font-size:0.72rem; padding:0.35rem 0.25rem;" onclick="window.app.setGisMode('cached')">
+                  ⚡ Cached GIS
+                </button>
+                <button id="btn-mode-canvas" class="btn btn-sm btn-secondary" style="flex:1; font-size:0.72rem; padding:0.35rem 0.25rem;" onclick="window.app.setGisMode('canvas')">
+                  📐 2D Canvas
+                </button>
+              </div>
+
+              <!-- Google Maps Sub-controls -->
+              <div id="gmaps-subcontrols" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:0.75rem; background:var(--bg-tertiary); padding:0.65rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:0.75rem; color:var(--text-secondary);">Map Type:</span>
+                  <select id="gmaps-type-select" style="background:var(--bg-card); color:var(--text-primary); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:2px 6px; font-size:0.75rem;" onchange="window.app.setGmapsType(this.value)">
+                    <option value="hybrid" selected>🛰️ Hybrid</option>
+                    <option value="satellite">🌍 Satellite</option>
+                    <option value="roadmap">🛣️ Roadmap</option>
+                    <option value="terrain">⛰️ Terrain</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-bottom:2px; color:var(--text-secondary);">
+                    <span>Cadastral Opacity</span>
+                    <span id="lbl-overlay-opacity">45%</span>
+                  </div>
+                  <input type="range" id="gmaps-opacity-slider" min="5" max="95" value="45" style="width:100%; accent-color:var(--accent-cyan);" oninput="document.getElementById('lbl-overlay-opacity').textContent = this.value + '%'; window.app.setGmapsOpacity(this.value / 100);">
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-subtle); padding-top:0.4rem; font-size:0.72rem;">
+                  <span id="gmaps-key-status" style="color:var(--accent-emerald);">● Google Maps Active</span>
+                  <button class="btn btn-ghost btn-xs" style="font-size:0.7rem; color:var(--accent-cyan); padding:2px 4px;" onclick="window.app.openGmapsKeyModal()">⚙️ API Key</button>
+                </div>
+              </div>
+
+              <!-- GIS Cache Control Panel -->
+              <div id="gis-cache-controls" style="display:flex; flex-direction:column; gap:0.4rem; margin-bottom:0.75rem; background:rgba(70, 118, 185, 0.12); padding:0.6rem; border-radius:var(--radius-sm); border:1px solid rgba(70, 118, 185, 0.3);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:0.75rem; font-weight:700; color:var(--accent-cyan);">⚡ GIS Cache System</span>
+                  <span id="gis-cache-status-badge" style="font-size:0.68rem; background:rgba(95, 175, 138, 0.2); color:var(--accent-emerald); padding:1px 5px; border-radius:3px; font-weight:600;">● 100% Warm (0ms)</span>
+                </div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); line-height:1.4;">
+                  <div>• <strong>Geocodes:</strong> 38 TN Districts & Taluks Cached</div>
+                  <div>• <strong>Basemap:</strong> Instant Offline Vector + Satellite</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.06); padding-top:0.35rem; margin-top:0.2rem;">
+                  <span style="font-size:0.68rem; color:var(--text-muted);">Bypasses network delays</span>
+                  <button class="btn btn-ghost btn-xs" style="font-size:0.68rem; color:var(--accent-cyan); padding:2px 4px;" onclick="window.app.clearGisCache()">↺ Clear Cache</button>
+                </div>
+              </div>
+            </div>
+
+
+            <div class="layer-toggle-list">
+              <label class="layer-toggle-item demo-layer-toggle">
+                <div style="display:flex; align-items:center;">
+                  <span class="layer-badge" style="background:#94a3b8;"></span>
+                  <span>Demo cadastral layers</span>
+                </div>
+                <input type="checkbox" onchange="window.app.bhuNaksha.toggleDemoData(this.checked)">
+              </label>
+              <div class="gis-filter-hint">Layer filters apply to demo overlays only. They stay off for uploaded patta locations.</div>
+
+              <label class="layer-toggle-item">
+                <div style="display:flex; align-items:center;">
+                  <span class="layer-badge" style="background:var(--blue);"></span>
+                  <span>Khasra Parcel Polygons</span>
+                </div>
+                <input type="checkbox" checked onchange="window.app.bhuNaksha.toggleLayer('layer_parcels')">
+              </label>
+
+              <label class="layer-toggle-item">
+                <div style="display:flex; align-items:center;">
+                  <span class="layer-badge" style="background:var(--blue-text);"></span>
+                  <span>Water Body & Canals</span>
+                </div>
+                <input type="checkbox" checked onchange="window.app.bhuNaksha.toggleLayer('layer_water')">
+              </label>
+
+              <label class="layer-toggle-item">
+                <div style="display:flex; align-items:center;">
+                  <span class="layer-badge" style="background:var(--amber);"></span>
+                  <span>Gram Panchayat Roads</span>
+                </div>
+                <input type="checkbox" checked onchange="window.app.bhuNaksha.toggleLayer('layer_roads')">
+              </label>
+
+              <label class="layer-toggle-item">
+                <div style="display:flex; align-items:center;">
+                  <span class="layer-badge" style="background:var(--success);"></span>
+                  <span>Social Forestry Buffer</span>
+                </div>
+                <input type="checkbox" checked onchange="window.app.bhuNaksha.toggleLayer('layer_forest')">
+              </label>
+            </div>
+
+            <div style="margin-top:auto;">
+              <button class="btn btn-secondary" style="width:100%;" onclick="window.app.exportGeoJson()">
+                🌍 Export Cadastral GeoJSON
+              </button>
+            </div>
+          </div>
+
+          <!-- Center: Interactive Map Canvas -->
+          <div class="gis-map-viewport">
+            <!-- Map Controls -->
+            <div class="gis-map-toolbar">
+              <button class="tool-btn" onclick="window.app.bhuNaksha.zoomIn()">+</button>
+              <button class="tool-btn" onclick="window.app.bhuNaksha.zoomOut()">-</button>
+              <button class="tool-btn" onclick="window.app.bhuNaksha.resetView()">⟲ Reset</button>
+            </div>
+
+            <!-- Canvas & Google Map Container -->
+            <div class="gis-map-canvas-container">
+              <div id="google-map-container" style="width:100%; height:100%;"></div>
+              <canvas id="cadastral-map-canvas" style="display:none;"></canvas>
+            </div>
+            <div id="gis-locate-message" class="gis-locate-message" role="status"></div>
+
+            <!-- Footer Overlays -->
+            <div class="gis-map-footer-overlay">
+              <div class="gis-map-scale">
+                Tamil Nadu locator • EPSG:4326
+              </div>
+
+              <div class="gis-map-legend">
+                <div class="legend-item"><span class="legend-color" style="background:var(--blue);"></span> Agricultural
+                </div>
+                <div class="legend-item"><span class="legend-color" style="background:var(--amber);"></span> Disputed</div>
+                <div class="legend-item"><span class="legend-color" style="background:var(--blue-text);"></span> Water Body</div>
+                <div class="legend-item"><span class="legend-color" style="background:var(--orchid);"></span> Govt Land</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right GIS Sidebar: Parcel Details & Boundaries -->
+          <div id="gis-parcel-inspector" class="gis-parcel-details-pane">
+            <!-- Populated via BhuNakshaMap select callback -->
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- =========================================================================
+           VIEW 5: BATCH INGESTION QUEUE
+           ========================================================================= -->
+      <section id="view-batch" class="view-section">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📦 High-Volume Historical Archive Ingestion Pipeline</div>
+              <div class="card-subtitle">Batch OCR and auto-classification queue for physical tehsil revenue archives
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="window.app.simulateNewBatch()">
+              + Ingest New Archive Batch
+            </button>
+          </div>
+
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Batch ID</th>
+                  <th>Archive Description</th>
+                  <th>Volume</th>
+                  <th>Pipeline Progress</th>
+                  <th>Status</th>
+                  <th>Tracking</th>
+                </tr>
+              </thead>
+              <tbody id="batch-queue-table-body">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           VIEW: CITIZEN HOLDINGS (Read-only list of verified linked records)
+           ========================================================================= -->
+      <section id="view-citizen-holdings" class="view-section">
+        <div class="dashboard-header">
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+              <span class="badge badge-role-citizen">👤 Citizen Land Portal</span>
+              <span id="citizen-verified-badge" class="badge badge-verified">Verified Titleholder</span>
+            </div>
+            <h1>My Verified Land Holdings</h1>
+            <p class="card-subtitle">Official digitized land parcels legally verified and linked to your citizen profile.</p>
+          </div>
+          <div style="display:flex; gap:0.5rem; align-items:center;">
+            <button class="btn btn-secondary btn-sm" onclick="window.app.loadCitizenHoldings()">🔄 Refresh Records</button>
+            <button class="btn btn-primary" onclick="window.app.switchView('citizen-claims')">🔗 Link a Land Record</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 1.25rem;">
+          <div class="card-header">
+            <div class="card-title">📜 Verified Land Records (<span id="citizen-holdings-count">0</span>)</div>
+          </div>
+          <div id="citizen-holdings-loading" style="padding:2rem; text-align:center; color:var(--text-muted); display:none;">Loading verified land records...</div>
+          <div class="data-table-wrapper" id="citizen-holdings-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Patta / Khata No</th>
+                  <th>Survey / Subdiv</th>
+                  <th>Village / Taluk</th>
+                  <th>District</th>
+                  <th>Recorded Owner(s)</th>
+                  <th>Area / Extent</th>
+                  <th>Classification</th>
+                  <th>Investigation Status</th>
+                </tr>
+              </thead>
+              <tbody id="citizen-holdings-tbody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+          <div id="citizen-holdings-empty" class="dashboard-empty-state" style="padding:3.5rem 1.5rem; text-align:center; display:none;">
+            <div style="font-size:2.8rem; margin-bottom:0.75rem;">🌾</div>
+            <h3 style="font-weight:700; margin-bottom:0.5rem;">No verified land records linked yet</h3>
+            <p style="color:var(--text-secondary); max-width:480px; margin:0 auto 1.25rem; font-size:0.85rem; line-height:1.5;">
+              You do not currently have any land records verified to your profile. Submit a link request with your Patta and Survey number to link your official holding.
+            </p>
+            <button class="btn btn-primary" onclick="window.app.switchView('citizen-claims')">Link a Land Record</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           VIEW: CITIZEN CLAIMS (Link a record form & claim status tracker)
+           ========================================================================= -->
+      <section id="view-citizen-claims" class="view-section">
+        <div class="dashboard-header">
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+              <span class="badge badge-role-citizen">👤 Citizen Land Portal</span>
+              <span class="badge badge-pending">Ownership Claim Service</span>
+            </div>
+            <h1>Link a Land Record & Track Claim Status</h1>
+            <p class="card-subtitle">Submit an ownership claim for an existing digitized parcel. Revenue Tahsildars will review your claim against land registry records.</p>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: minmax(320px, 440px) 1fr; gap:1.5rem; align-items:start;">
+          <!-- Claim Submission Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">📝 Link a Land Record</div>
+            </div>
+            <form id="citizen-claim-form" onsubmit="window.app.handleCitizenClaimSubmit(event)">
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label class="form-label" for="claim-record-id">Target Digitized Record ID <span style="color:var(--accent-rose);">*</span></label>
+                <input type="text" id="claim-record-id" class="form-input" placeholder="e.g. rec_ayakudi_01 or paste Record ID" required>
+                <span style="font-size:0.7rem; color:var(--text-muted);">Unique identifier of the digitized Patta parcel.</span>
+              </div>
+
+              <div class="form-group" style="margin-bottom:0.85rem;">
+                <label class="form-label" for="claim-claimed-name">Claimant Full Name <span style="color:var(--accent-rose);">*</span></label>
+                <input type="text" id="claim-claimed-name" class="form-input" placeholder="e.g. S. Muthusamy" required>
+                <span style="font-size:0.7rem; color:var(--text-muted);">Must match name printed on title deed / Patta.</span>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+                <div class="form-group">
+                  <label class="form-label" for="claim-survey-no">Survey / Subdiv <span style="color:var(--accent-rose);">*</span></label>
+                  <input type="text" id="claim-survey-no" class="form-input" placeholder="e.g. 124/2A" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="claim-patta-no">Patta Number <span style="color:var(--accent-rose);">*</span></label>
+                  <input type="text" id="claim-patta-no" class="form-input" placeholder="e.g. 1042" required>
+                </div>
+              </div>
+
+              <div id="citizen-claim-msg" style="display:none; padding:0.65rem 0.85rem; border-radius:var(--radius-sm); font-size:0.8rem; margin-bottom:1rem;"></div>
+
+              <button type="submit" id="citizen-claim-submit-btn" class="btn btn-primary" style="width:100%;">
+                <span>Submit Ownership Claim</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Claims Tracking Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">📋 Submitted Claims & Tracking (<span id="citizen-claims-count">0</span>)</div>
+              <button class="btn btn-ghost btn-sm" onclick="window.app.loadCitizenClaims()">🔄 Refresh</button>
+            </div>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Claim ID</th>
+                    <th>Claimed Name</th>
+                    <th>Survey No</th>
+                    <th>Patta No</th>
+                    <th>Record ID</th>
+                    <th>Submitted</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="citizen-claims-tbody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+            <div id="citizen-claims-empty" style="padding:2.5rem; text-align:center; color:var(--text-muted); display:none; font-size:0.85rem;">
+              No ownership claims submitted yet. Use the form on the left to claim a land record.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           VIEW: POLICE REGISTRY (Read-only searchable list + investigation flags)
+           ========================================================================= -->
+      <section id="view-police-registry" class="view-section">
+        <div class="dashboard-header">
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+              <span class="badge badge-role-police">👮 Police Department Portal</span>
+              <span class="badge badge-flagged">Law Enforcement Inquiries</span>
+            </div>
+            <h1>Cadastral Land Registry & Investigation Portal</h1>
+            <p class="card-subtitle">Official searchable land registry database. Search by Survey No, Patta No, or Owner Name. Flag parcels under active criminal dispute or investigation.</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:1.25rem;">
+          <!-- Search & Filter Controls -->
+          <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; justify-content:space-between; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border-subtle);">
+            <div style="display:flex; gap:0.5rem; flex:1; max-width:550px;">
+              <input type="text" id="police-search-input" class="form-input" placeholder="🔍 Search Survey No, Patta No, Village, or Owner Name..." oninput="window.app.handlePoliceSearch(this.value)">
+              <button class="btn btn-secondary btn-sm" onclick="window.app.clearPoliceSearch()">Clear</button>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <span style="font-size:0.78rem; color:var(--text-secondary);">Filter:</span>
+              <select id="police-filter-status" class="form-select" style="width:auto; font-size:0.78rem;" onchange="window.app.renderPoliceTable()">
+                <option value="all">All Records</option>
+                <option value="flagged">🚨 Flagged for Investigation Only</option>
+                <option value="clear">✅ Clear / Unflagged Only</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="window.app.loadPoliceRecords()">🔄 Refresh</button>
+            </div>
+          </div>
+
+          <!-- Police Table -->
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Patta No</th>
+                  <th>Survey / Subdiv</th>
+                  <th>Village / Taluk</th>
+                  <th>Recorded Owners</th>
+                  <th>Area (Ha)</th>
+                  <th>Investigation Status</th>
+                  <th>Investigation Reason / FIR</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="police-records-tbody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+          <div id="police-records-empty" style="padding:2.5rem; text-align:center; color:var(--text-muted); display:none; font-size:0.85rem;">
+            No records found matching your search query.
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           VIEW: OWNERSHIP REQUESTS QUEUE (Tahsildar & Admin review queue)
+           ========================================================================= -->
+      <section id="view-ownership-queue" class="view-section">
+        <div class="dashboard-header">
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+              <span class="badge badge-role-tahsildar">🏛️ Revenue Desk</span>
+              <span class="badge badge-pending">Citizen Verification Queue</span>
+            </div>
+            <h1>Citizen Land Record Ownership Claims Queue</h1>
+            <p class="card-subtitle">Review and verify ownership claims submitted by citizens linking their profile to digitized Patta records.</p>
+          </div>
+          <div style="display:flex; gap:0.5rem; align-items:center;">
+            <select id="ownership-filter-status" class="form-select" style="width:auto; font-size:0.78rem;" onchange="window.app.renderOwnershipQueueTable()">
+              <option value="pending" selected>Pending Review Only</option>
+              <option value="verified">Verified Claims Only</option>
+              <option value="rejected">Rejected Claims Only</option>
+              <option value="all">All Claims</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="window.app.loadOwnershipQueue()">🔄 Refresh Queue</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Claim ID</th>
+                  <th>Citizen Applicant</th>
+                  <th>Claimed Name</th>
+                  <th>Survey / Subdiv</th>
+                  <th>Patta No</th>
+                  <th>Record ID</th>
+                  <th>Submitted Date</th>
+                  <th>Status</th>
+                  <th>Review Action</th>
+                </tr>
+              </thead>
+              <tbody id="ownership-queue-tbody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+          <div id="ownership-queue-empty" style="padding:2.5rem; text-align:center; color:var(--text-muted); display:none; font-size:0.85rem;">
+            No ownership claims found matching filter.
+          </div>
+        </div>
+      </section>
+
+      <!-- =========================================================================
+           VIEW: ADMIN USER MANAGEMENT (Admin-only create tahsildar / police)
+           ========================================================================= -->
+      <section id="view-admin-users" class="view-section">
+        <div class="dashboard-header">
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+              <span class="badge badge-role-admin">🛡️ System Administration</span>
+              <span class="badge badge-info">Role Provisioning</span>
+            </div>
+            <h1>System User Provisioning & Management</h1>
+            <p class="card-subtitle">Create official accounts for Tahsildar revenue officers and Police department personnel with role-enforced access controls.</p>
+          </div>
+          <button class="btn btn-primary" onclick="window.app.openCreateUserModal()">
+            ➕ Create New Official User
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">👥 Registered Platform Users (<span id="admin-users-count">0</span>)</div>
+            <button class="btn btn-ghost btn-sm" onclick="window.app.loadAdminUsers()">🔄 Refresh</button>
+          </div>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Full Name</th>
+                  <th>Role</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Registered Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-tbody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Batch Tracking Modal -->
+    <div id="batch-details-modal" class="modal-overlay">
+      <div class="modal-box batch-details-modal-box">
+        <div class="modal-header">
+          <div>
+            <strong id="batch-details-title">Batch Tracking</strong>
+            <div id="batch-details-id" class="mono" style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="window.app.closeBatchDetails()" aria-label="Close batch tracking">✕</button>
+        </div>
+        <div id="batch-details-body" class="modal-body"></div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="window.app.closeBatchDetails()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Document Modal -->
+    <div id="upload-modal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">
+          <strong>📤 Ingest Land Record Document / Scan</strong>
+          <button class="btn btn-ghost btn-sm" onclick="window.app.closeUploadModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:0.85rem; color:var(--text-secondary);">
+            Upload a high-resolution scanned land register, 7/12 extract, Patta Chitta, Khasra-Khatauni, or legacy
+            handwritten manuscript.
+          </p>
+
+          <div
+            id="modal-drop-zone"
+            style="border:2px dashed var(--border-medium); border-radius:var(--radius-lg); padding:2rem; text-align:center; background:rgba(0,0,0,0.2); cursor:pointer;"
+            onclick="if (event.target.tagName !== 'BUTTON') document.getElementById('file-upload-input').click()">
+            <svg style="width:48px; height:48px; color:var(--accent-cyan); margin-bottom:0.75rem;" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <div style="font-weight:600; margin-bottom:0.35rem;">Drag & drop a Tamil Patta scan (PNG/JPG) or PDF here</div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1rem;">Supports Tamil Patta / Chitta PDF and image scans, plus readable TXT, CSV, or JSON land-record files.</div>
+            <div id="modal-upload-status" class="upload-modal-status" role="status">Choose a file to begin analysis.</div>
+
+            <input type="file" id="file-upload-input" accept="image/*,application/pdf,.pdf,.txt,.csv,.json" style="display:none;"
+              onchange="window.app.handleCustomUpload(event)">
+            <button class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('file-upload-input').click()">
+              Select Local File
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="window.app.closeUploadModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Google Maps API Key Modal -->
+    <div id="gmaps-key-modal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">
+          <strong>🔑 Google Maps API Configuration</strong>
+          <button class="btn btn-ghost btn-sm" onclick="window.app.closeGmapsKeyModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.85rem;">
+            Configure your Google Maps JavaScript API key to enable high-resolution satellite imagery, hybrid basemaps, and cadastral vector overlays.
+          </p>
+          <div style="margin-bottom:1rem;">
+            <label class="form-label" style="display:block; font-size:0.78rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-primary);">Google Maps JavaScript API Key</label>
+            <input type="text" id="gmaps-api-key-input" class="form-input" style="width:100%; font-family:'JetBrains Mono', monospace; font-size:0.82rem; padding:0.5rem 0.75rem; background:var(--bg-tertiary); border:1px solid var(--border-medium); border-radius:var(--radius-sm); color:var(--text-primary);" placeholder="AIzaSy...">
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-muted); background:var(--bg-tertiary); padding:0.65rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); line-height:1.4;">
+            💡 <strong>API Requirement:</strong> Make sure <em>Maps JavaScript API</em> is enabled in your Google Cloud Console.<br>
+            Stored locally in your browser (<code style="color:var(--accent-cyan);">localStorage</code>).
+          </div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:0.5rem;">
+          <button class="btn btn-secondary" onclick="window.app.closeGmapsKeyModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="window.app.saveGmapsApiKey()">Save & Connect</button>
+        </div>
+      </div>
+    </div>
+    <!-- Police Investigation Flag Modal -->
+    <div id="police-flag-modal" class="modal-overlay">
+      <div class="modal-box" style="max-width:520px;">
+        <div class="modal-header">
+          <strong id="police-modal-title">🚨 Flag Record for Investigation</strong>
+          <button class="btn btn-ghost btn-sm" onclick="window.app.closePoliceFlagModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="background:var(--bg-tertiary); padding:0.75rem 1rem; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); margin-bottom:0.75rem;">
+            <div style="font-size:0.75rem; color:var(--text-muted);">Selected Land Record:</div>
+            <div id="police-modal-record-info" style="font-weight:600; color:var(--text-primary); font-size:0.85rem; margin-top:2px;"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:0.85rem;">
+            <label class="form-label" for="police-modal-flag-select">Investigation Flag Status</label>
+            <select id="police-modal-flag-select" class="form-select">
+              <option value="true">🚨 Flagged for Active Investigation</option>
+              <option value="false">✅ Clear Flag (No active dispute / investigation)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0.5rem;">
+            <label class="form-label" for="police-modal-reason">Investigation Reason / FIR Reference / Notes</label>
+            <textarea id="police-modal-reason" class="form-textarea" rows="3" placeholder="Enter FIR number, case reference, boundary dispute note, or investigation reason..."></textarea>
+          </div>
+          <div id="police-modal-msg" style="display:none; padding:0.6rem 0.85rem; border-radius:var(--radius-sm); font-size:0.8rem;"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="window.app.closePoliceFlagModal()">Cancel</button>
+          <button class="btn btn-primary" id="police-modal-submit-btn" onclick="window.app.submitPoliceFlag()">Save Flag Status</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Create User Modal -->
+    <div id="admin-create-user-modal" class="modal-overlay">
+      <div class="modal-box" style="max-width:520px;">
+        <div class="modal-header">
+          <strong>➕ Provision New Official User</strong>
+          <button class="btn btn-ghost btn-sm" onclick="window.app.closeCreateUserModal()">✕</button>
+        </div>
+        <form onsubmit="window.app.handleAdminCreateUser(event)">
+          <div class="modal-body">
+            <div class="form-group" style="margin-bottom:0.75rem;">
+              <label class="form-label" for="new-user-role">Official Role <span style="color:var(--accent-rose);">*</span></label>
+              <select id="new-user-role" class="form-select" required>
+                <option value="tahsildar">Tahsildar (Revenue Officer)</option>
+                <option value="police">Police Inspector / Law Enforcement</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0.75rem;">
+              <label class="form-label" for="new-user-name">Full Name <span style="color:var(--accent-rose);">*</span></label>
+              <input type="text" id="new-user-name" class="form-input" placeholder="e.g. Officer Ramanathan" required>
+            </div>
+            <div class="form-group" style="margin-bottom:0.75rem;">
+              <label class="form-label" for="new-user-email">Official Email <span style="color:var(--accent-rose);">*</span></label>
+              <input type="email" id="new-user-email" class="form-input" placeholder="e.g. officer.new@tn.gov.in" required>
+            </div>
+            <div class="form-group" style="margin-bottom:0.75rem;">
+              <label class="form-label" for="new-user-phone">Phone Number (Optional)</label>
+              <input type="tel" id="new-user-phone" class="form-input" placeholder="e.g. 9876543210">
+            </div>
+            <div class="form-group" style="margin-bottom:0.75rem;">
+              <label class="form-label" for="new-user-password">Initial Password <span style="color:var(--accent-rose);">*</span></label>
+              <input type="password" id="new-user-password" class="form-input" placeholder="Minimum 6 characters" minlength="6" required>
+            </div>
+            <div id="admin-user-create-msg" style="display:none; padding:0.6rem 0.85rem; border-radius:var(--radius-sm); font-size:0.8rem;"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="window.app.closeCreateUserModal()">Cancel</button>
+            <button type="submit" id="admin-user-submit-btn" class="btn btn-primary">Create User Account</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JavaScript ES Modules Entrypoint -->
+  <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

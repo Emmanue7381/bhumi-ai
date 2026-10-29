@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BHUMI-AI | Role-Based Portal Login</title>
+  <meta name="description"
+    content="Role-Based Authentication Portal for Citizens, Tahsildars, Police, and Administrators accessing the BHUMI-AI Land Records Digitization Platform.">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/theme.css">
+
+  <script>
+    /* Immediate theme initialization to eliminate theme flashing */
+    (function () {
+      try {
+        var savedTheme = localStorage.getItem('bhumi_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } catch (e) { }
+    })();
+  </script>
+
+  <style>
+    .login-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .login-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      padding: 2rem 0;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-xl);
+      padding: 2.25rem;
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent-saffron), var(--accent-emerald), var(--accent-cyan));
+    }
+
+    .login-brand-group {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .login-emblem {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 0.75rem;
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+      border: 1px solid var(--border-medium);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+    }
+
+    .login-emblem svg {
+      width: 36px;
+      height: 36px;
+    }
+
+    .login-title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .login-subtitle {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    /* Role selection tabs */
+    .role-selector-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 4px;
+      margin-bottom: 1.25rem;
+    }
+
+    .role-tab-btn {
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-full);
+      padding: 0.45rem 0.2rem;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: all 0.2s ease;
+    }
+
+    .role-tab-btn:hover {
+      color: var(--text-primary);
+      background: var(--surface-3);
+    }
+
+    .role-tab-btn.active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue) 0%, #1d4ed8 100%);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+    }
+
+    .role-tab-icon {
+      font-size: 1.05rem;
+    }
+
+    /* Form Fields */
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .login-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .login-form-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .input-with-icon {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-with-icon svg.field-icon {
+      position: absolute;
+      left: 0.85rem;
+      width: 16px;
+      height: 16px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .input-with-icon .form-input {
+      padding-left: 2.4rem;
+      width: 100%;
+    }
+
+    .password-toggle-btn {
+      position: absolute;
+      right: 0.75rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 0.25rem;
+    }
+
+    .btn-login-submit {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      border-radius: var(--radius-md);
+      margin-top: 0.35rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+
+    .login-switch-mode {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 0.85rem;
+    }
+
+    .login-switch-mode a {
+      color: var(--blue-text);
+      font-weight: 600;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .login-status-msg {
+      font-size: 0.75rem;
+      padding: 0.6rem;
+      border-radius: var(--radius-sm);
+      display: none;
+      text-align: center;
+      margin-bottom: 0.75rem;
+      line-height: 1.35;
+    }
+
+    .login-status-msg.error {
+      display: block;
+      background: var(--conf-low-bg);
+      color: var(--danger);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .login-status-msg.success {
+      display: block;
+      background: var(--conf-high-bg);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .role-badge-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: var(--radius-full);
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+    }
+
+    .tradeoff-note {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 1rem;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="login-wrapper">
+
+    <!-- Top Navigation Header -->
+    <header class="login-header">
+      <div class="navbar-brand" onclick="window.location.href='index.html'">
+        <div class="brand-emblem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#38bdf8" />
+          </svg>
+        </div>
+        <div class="brand-title-group">
+          <div class="brand-title">BHUMI-AI</div>
+          <span class="brand-subtitle">Govt. of India • SIH26018</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <!-- Theme Toggle Button -->
+        <button id="theme-toggle-btn" class="theme-toggle-btn" type="button" onclick="toggleTheme()"
+          title="Toggle Dark / Light Theme" aria-label="Toggle theme">
+          <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Center Card -->
+    <main class="login-main">
+      <div class="login-card">
+        <div class="login-brand-group">
+          <div class="login-emblem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#38bdf8" />
+            </svg>
+          </div>
+          <h1 class="login-title" id="auth-title">Role-Based Portal Login</h1>
+          <p class="login-subtitle">
+            Ministry of Rural Development &amp; Land Revenue Administration<br>
+            Server-Enforced Access for Citizens, Tahsildars, Police &amp; Admin
+          </p>
+        </div>
+
+        <!-- 4-Role Selector Bar (Citizen / Tahsildar / Police / Admin) -->
+        <div class="role-selector-bar" id="role-selector-container">
+          <button type="button" class="role-tab-btn" data-role="citizen" onclick="selectRole('citizen')">
+            <span class="role-tab-icon">🌾</span>
+            <span>Citizen</span>
+          </button>
+          <button type="button" class="role-tab-btn active" data-role="tahsildar" onclick="selectRole('tahsildar')">
+            <span class="role-tab-icon">🏛️</span>
+            <span>Tahsildar</span>
+          </button>
+          <button type="button" class="role-tab-btn" data-role="police" onclick="selectRole('police')">
+            <span class="role-tab-icon">🚔</span>
+            <span>Police</span>
+          </button>
+          <button type="button" class="role-tab-btn" data-role="admin" onclick="selectRole('admin')">
+            <span class="role-tab-icon">⚙️</span>
+            <span>Admin</span>
+          </button>
+        </div>
+
+        <!-- Status Message Banner -->
+        <div id="login-status" class="login-status-msg" role="alert"></div>
+
+        <!-- Mode 1: LOGIN FORM -->
+        <form class="login-form" id="login-form" onsubmit="handleLogin(event)">
+          <div class="login-form-group">
+            <label class="login-form-label" for="login-email">
+              <span>Email Address or Phone Number</span>
+              <span class="role-badge-pill" id="active-role-badge">Tahsildar</span>
+            </label>
+            <div class="input-with-icon">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+              <input type="text" id="login-email" class="form-input" required
+                value="officer.ramanathan@tn.gov.in" placeholder="name@tn.gov.in or phone">
+            </div>
+          </div>
+
+          <div class="login-form-group">
+            <label class="login-form-label" for="login-password">
+              <span>Password</span>
+            </label>
+            <div class="input-with-icon">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <input type="password" id="login-password" class="form-input" required value="bhumi@2026"
+                placeholder="Enter password">
+              <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password')"
+                title="Show / Hide Password">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-login-submit" id="login-submit-btn">
+            <span>Sign In with Password</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </form>
+
+        <!-- Mode 2: CITIZEN SELF-SERVICE REGISTER FORM (Hidden by default) -->
+        <form class="login-form" id="register-form" style="display:none;" onsubmit="handleRegister(event)">
+          <div class="login-form-group">
+            <label class="login-form-label" for="reg-name">Full Legal Name</label>
+            <input type="text" id="reg-name" class="form-input" required placeholder="e.g. S. Muthusamy">
+          </div>
+          <div class="login-form-group">
+            <label class="login-form-label" for="reg-email">Email Address</label>
+            <input type="email" id="reg-email" class="form-input" required placeholder="e.g. muthusamy@example.com">
+          </div>
+          <div class="login-form-group">
+            <label class="login-form-label" for="reg-phone">Phone Number (Optional)</label>
+            <input type="text" id="reg-phone" class="form-input" placeholder="+919876543210">
+          </div>
+          <div class="login-form-group">
+            <label class="login-form-label" for="reg-password">Create Password (min. 6 chars)</label>
+            <input type="password" id="reg-password" class="form-input" required minlength="6" placeholder="Choose a strong password">
+          </div>
+          <button type="submit" class="btn btn-primary btn-login-submit" id="reg-submit-btn">
+            <span>Register Citizen Account</span>
+          </button>
+        </form>
+
+        <!-- Switch between Login and Citizen Register -->
+        <div class="login-switch-mode" id="switch-mode-container">
+          <span id="switch-prompt">New Citizen Landowner? </span>
+          <a id="switch-action-link" onclick="toggleRegisterMode()">Register Self-Service Account</a>
+        </div>
+
+        <div class="tradeoff-note">
+          🔒 Protected with bcrypt hashing &amp; signed JWT tokens (stored in memory &amp; session). Rate limited to 5 attempts/15min.
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="login-page-footer" style="max-width:1200px; width:100%; margin:0 auto; display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted);">
+      <div>&copy; 2026 BHUMI-AI • Ministry of Rural Development (SIH26018)</div>
+      <div style="display:flex; gap:1rem;">
+        <span>Digital India</span>
+        <span>NIC e-Gov SSO</span>
+        <span>Tamil Nadu Revenue Dept</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    let currentRole = 'tahsildar';
+    let isRegisterMode = false;
+
+    function selectRole(role) {
+      currentRole = role;
+      document.querySelectorAll('.role-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.role === role);
+      });
+      const badge = document.getElementById('active-role-badge');
+      if (badge) {
+        badge.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+      }
+    }
+
+    function togglePasswordVisibility(id) {
+      const input = document.getElementById(id);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function toggleRegisterMode() {
+      isRegisterMode = !isRegisterMode;
+      const loginForm = document.getElementById('login-form');
+      const regForm = document.getElementById('register-form');
+      const authTitle = document.getElementById('auth-title');
+      const switchPrompt = document.getElementById('switch-prompt');
+      const switchLink = document.getElementById('switch-action-link');
+      const roleBar = document.getElementById('role-selector-container');
+      const statusEl = document.getElementById('login-status');
+      statusEl.style.display = 'none';
+
+      if (isRegisterMode) {
+        loginForm.style.display = 'none';
+        regForm.style.display = 'flex';
+        authTitle.textContent = 'Citizen Registration';
+        switchPrompt.textContent = 'Already have an account? ';
+        switchLink.textContent = 'Back to Sign In';
+        roleBar.style.display = 'none';
+      } else {
+        loginForm.style.display = 'flex';
+        regForm.style.display = 'none';
+        authTitle.textContent = 'Role-Based Portal Login';
+        switchPrompt.textContent = 'New Citizen Landowner? ';
+        switchLink.textContent = 'Register Self-Service Account';
+        roleBar.style.display = 'grid';
+      }
+    }
+
+    const localHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
+    const isLocal = localHosts.has(window.location.hostname);
+    const API_BASE = window.BHUMI_API_BASE || (window.location.port === '3000' ? '/api' : (isLocal || window.location.protocol === 'file:' ? 'http://localhost:3000/api' : '/api'));
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const submitBtn = document.getElementById('login-submit-btn');
+      const statusEl = document.getElementById('login-status');
+
+      statusEl.className = 'login-status-msg';
+      statusEl.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Verifying credentials...</span>';
+
+      try {
+        let response;
+        try {
+          response = await fetch(`${API_BASE}/auth/login`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ email, password, role: currentRole })
+          });
+        } catch (netErr) {
+          throw new Error(`Cannot connect to backend server at ${API_BASE}. Please ensure the backend is running with "npm start" in /server. (${netErr.message})`);
+        }
+
+        const text = await response.text();
+        let data = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (e) {
+          throw new Error(text || `Server returned non-JSON response (HTTP ${response.status})`);
+        }
+
+        if (!response.ok) {
+          throw new Error(data?.error || data?.message || `Authentication failed (HTTP ${response.status})`);
+        }
+
+        if (!data || !data.token || !data.user) {
+          throw new Error('Authentication response was missing token or user data.');
+        }
+
+        // Store token in memory + sessionStorage (with localStorage backup for cross-page navigation)
+        sessionStorage.setItem('bhumi_jwt_token', data.token);
+        sessionStorage.setItem('bhumi_auth_user', JSON.stringify(data.user));
+        localStorage.setItem('bhumi_jwt_token', data.token);
+        localStorage.setItem('bhumi_auth_user', JSON.stringify(data.user));
+
+        statusEl.className = 'login-status-msg success';
+        statusEl.textContent = `Welcome, ${data.user.name} (${data.user.role.toUpperCase()})! Redirecting...`;
+        statusEl.style.display = 'block';
+
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 500);
+      } catch (err) {
+        statusEl.className = 'login-status-msg error';
+        statusEl.textContent = err.message;
+        statusEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Sign In with Password</span>';
+      }
+    }
+
+    async function handleRegister(event) {
+      event.preventDefault();
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const submitBtn = document.getElementById('reg-submit-btn');
+      const statusEl = document.getElementById('login-status');
+
+      statusEl.className = 'login-status-msg';
+      statusEl.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Creating citizen account...</span>';
+
+      try {
+        const payload = { name, email, password };
+        if (phone) payload.phone = phone;
+
+        let response;
+        try {
+          response = await fetch(`${API_BASE}/auth/register`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+        } catch (netErr) {
+          throw new Error(`Cannot connect to backend server at ${API_BASE}. Please ensure the backend is running with "npm start" in /server. (${netErr.message})`);
+        }
+
+        const text = await response.text();
+        let data = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (e) {
+          throw new Error(text || `Server returned non-JSON response (HTTP ${response.status})`);
+        }
+
+        if (!response.ok) {
+          throw new Error(data?.error || data?.message || 'Registration failed');
+        }
+
+        statusEl.className = 'login-status-msg success';
+        statusEl.textContent = 'Account created successfully! Switching to sign in...';
+        statusEl.style.display = 'block';
+
+        setTimeout(() => {
+          toggleRegisterMode();
+          selectRole('citizen');
+          document.getElementById('login-email').value = email;
+          document.getElementById('login-password').value = password;
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Register Citizen Account</span>';
+        }, 1000);
+      } catch (err) {
+        statusEl.className = 'login-status-msg error';
+        statusEl.textContent = err.message;
+        statusEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Register Citizen Account</span>';
+      }
+    }
+
+    // Theme toggle
+    function initTheme() {
+      let theme = localStorage.getItem('bhumi_theme');
+      if (!theme) {
+        theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      }
+      applyTheme(theme);
+    }
+
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      applyTheme(newTheme);
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      try {
+        localStorage.setItem('bhumi_theme', theme);
+      } catch (e) { }
+
+      const sunIcon = document.getElementById('theme-icon-sun');
+      const moonIcon = document.getElementById('theme-icon-moon');
+      const toggleBtn = document.getElementById('theme-toggle-btn');
+
+      if (theme === 'light') {
+        if (sunIcon) sunIcon.style.display = 'block';
+        if (moonIcon) moonIcon.style.display = 'none';
+        if (toggleBtn) toggleBtn.title = 'Current: Light Theme (Click to switch to Dark)';
+      } else {
+        if (sunIcon) sunIcon.style.display = 'none';
+        if (moonIcon) moonIcon.style.display = 'block';
+        if (toggleBtn) toggleBtn.title = 'Current: Dark Theme (Click to switch to Light)';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      selectRole('tahsildar');
+    });
+  </script>
+</body>
+
+</html>
